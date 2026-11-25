@@ -132,6 +132,9 @@
   .auth button.pri{background:linear-gradient(135deg,#5ef2ff,#a184ff);color:#060a18;border-color:transparent}
   .auth .lnk{background:none;border:0;padding:0;color:#5ef2ff;font-weight:500;justify-self:start}
   .auth .msg{font-size:13px;min-height:1em;color:#ffc65c}.auth .msg.ok{color:#4fe3a1}
+  .auth .tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;background:rgba(0,0,0,.3);border:1px solid rgba(170,200,255,.16)}
+  .auth .tabs button{border:0;border-radius:10px;padding:10px;background:none;color:#8e9bbb}
+  .auth .tabs button[aria-selected="true"]{background:linear-gradient(135deg,#5ef2ff,#a184ff);color:#060a18}
   .auth input:focus-visible,.auth button:focus-visible{outline:2px solid #5ef2ff;outline-offset:2px}`;
   const LOGO = `<svg width="44" height="44" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="alg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#5ef2ff"/><stop offset=".55" stop-color="#a184ff"/><stop offset="1" stop-color="#ff7ab8"/></linearGradient></defs><path d="M16 2.5 28 9.3v13.4L16 29.5 4 22.7V9.3z" fill="none" stroke="url(#alg)" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 11.5h12M16 11.5V24" fill="none" stroke="url(#alg)" stroke-width="2.8" stroke-linecap="round"/></svg>`;
   let box = null;
@@ -142,10 +145,26 @@
   }
   const hide = () => { if (box) box.hidden = true };
   const msg = (t, ok) => { const m = box && box.querySelector(".msg"); if (m) { m.textContent = t; m.className = "msg" + (ok ? " ok" : "") } };
+  const tabs = which => CFG.allowSignup === false ? "" : `<div class="tabs" role="tablist"><button type="button" role="tab" data-tab="in" aria-selected="${which === "in"}">Sign in</button><button type="button" role="tab" data-tab="up" aria-selected="${which === "up"}">Create account</button></div>`;
+  const wireTabs = () => box.querySelectorAll("[data-tab]").forEach(b => b.onclick = () => b.dataset.tab === "up" ? showSignup() : showLogin());
   function showLogin(note) {
-    overlay(`<form id="lf" style="display:grid;gap:12px"><label>Email<input id="le" type="email" autocomplete="username" required></label><label>Password<input id="lp" type="password" autocomplete="current-password" required></label><button class="pri" type="submit">Sign in</button></form><button class="lnk" type="button" id="lforgot">Forgot password?</button><p class="msg">${esc(note || "")}</p>`);
+    overlay(`${tabs("in")}<form id="lf" style="display:grid;gap:12px"><label>Email<input id="le" type="email" autocomplete="username" required></label><label>Password<input id="lp" type="password" autocomplete="current-password" required></label><button class="pri" type="submit">Sign in</button></form><button class="lnk" type="button" id="lforgot">Forgot password?</button><p class="msg">${esc(note || "")}</p>`);
+    wireTabs();
     box.querySelector("#lf").onsubmit = async e => { e.preventDefault(); msg("Signing in…", true); const { error } = await sb.auth.signInWithPassword({ email: box.querySelector("#le").value.trim(), password: box.querySelector("#lp").value }); if (error) msg(error.message === "Invalid login credentials" ? "Wrong email or password. Check both, or ask your coach to reset your password." : error.message) };
     box.querySelector("#lforgot").onclick = async () => { const em = box.querySelector("#le").value.trim(); if (!em) { msg("Type your email first, then tap Forgot password."); return } const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin + location.pathname }); msg(error ? error.message : "Check your inbox for a reset link.", !error) };
+  }
+  function showSignup() {
+    overlay(`${tabs("up")}<p style="margin:0;color:#8e9bbb;font-size:13.5px">Create your athlete account. Your coach will see your progress.</p><form id="sf" style="display:grid;gap:12px"><label>Full name<input id="sn" autocomplete="name" required maxlength="80"></label><label>Email<input id="se" type="email" autocomplete="email" required></label><label>Password<input id="sp1" type="password" autocomplete="new-password" minlength="8" required></label><label>Repeat password<input id="sp2" type="password" autocomplete="new-password" minlength="8" required></label><button class="pri" type="submit">Create account</button></form><p class="msg"></p>`);
+    wireTabs();
+    box.querySelector("#sf").onsubmit = async e => {
+      e.preventDefault(); const name = box.querySelector("#sn").value.trim(), email = box.querySelector("#se").value.trim(), a = box.querySelector("#sp1").value;
+      if (a !== box.querySelector("#sp2").value) { msg("The two passwords don't match."); return }
+      msg("Creating your account…", true);
+      const { data, error } = await sb.auth.signUp({ email, password: a, options: { data: { name }, emailRedirectTo: location.origin + location.pathname } });
+      if (error) { msg(/not allowed|disabled/i.test(error.message) ? "Sign-up is closed right now. Ask your coach for an account." : /registered|exists/i.test(error.message) ? "This email already has an account. Sign in instead." : error.message); return }
+      if (data && data.session) return; // signed in straight away; onAuthStateChange starts the app
+      showLogin(); msg("Account created. Check your inbox for a confirmation email, tap the link, then sign in here.", true);
+    };
   }
   function showNewPassword() {
     overlay(`<p style="margin:0">Choose a new password for your account.</p><form id="np" style="display:grid;gap:12px"><label>New password<input id="np1" type="password" autocomplete="new-password" minlength="8" required></label><label>Repeat it<input id="np2" type="password" autocomplete="new-password" minlength="8" required></label><button class="pri" type="submit">Save password</button></form><p class="msg"></p>`);
