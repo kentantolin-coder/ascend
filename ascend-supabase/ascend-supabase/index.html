@@ -192,6 +192,7 @@ button.li:hover{border-color:var(--line-hi)}
 .li .s{font-size:11.5px;color:var(--muted)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .chips button{all:unset;cursor:pointer;font-size:11.5px;padding:5px 11px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.chips.hscroll{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}.chips.hscroll button{flex:none}
 .chips button[aria-pressed="true"]{color:#060a18;background:var(--cyan);border-color:transparent;font-weight:600}
 .macro{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .macro .m{min-width:0}.macro .m b{display:block;font-size:18px}.macro .m small{font-size:11px;font-weight:400}.macro .m span{font-size:11px;color:var(--muted)}
@@ -428,7 +429,8 @@ a.chip{text-decoration:none;color:var(--fg);border-color:var(--line-hi)}
         <div id="fSum"></div>
       </div>
       <div id="meals" class="grid" style="grid-column:span 12"></div>
-      <div class="g s6" id="aiCard">
+      <div class="g s6" id="quickCard"><div class="row between"><p class="eyebrow" style="margin:0">Quick add · your usual foods</p><select id="qMeal" aria-label="Meal" style="width:auto;padding:6px 30px 6px 10px;font-size:13px"><option value="breakfast">Breakfast</option><option value="lunch">Lunch</option><option value="dinner">Dinner</option><option value="snacks">Snacks</option></select></div><div class="chips" id="quickList" style="margin-top:12px"></div></div>
+      <div class="g s6" id="aiCard" hidden>
         <p class="eyebrow"><b>AI</b> Snap or describe a meal</p>
         <textarea id="aiText" placeholder="e.g. 1.5 cups rice, 2 pieces chicken adobo, 1 boiled egg, iced tea"></textarea>
         <div class="row" style="margin-top:10px">
@@ -978,32 +980,515 @@ function lineChart(pts,label,W=640,H=190){
   return s+`<text x="${W-R}" y="${T-2}" text-anchor="end">${esc(label)}</text></svg>`}
 
 /* ================= nutrition ================= */
-const FOODS=[
-["White rice, cooked","1 cup (158 g)",205,4.3,45,0.4],["Brown rice, cooked","1 cup (195 g)",216,5,45,1.8],["Garlic fried rice (sinangag)","1 cup",290,5,46,9],
-["Pandesal","1 piece (30 g)",90,2.6,16,1.5],["Whole wheat bread","1 slice",80,4,14,1],["Rolled oats, dry","40 g",150,5,27,2.5],
-["Kamote (sweet potato), boiled","1 medium (150 g)",130,2.4,30,0.2],["Potato, boiled","1 medium (170 g)",150,3.5,34,0.2],["Saba banana, boiled","1 piece",110,1.2,28,0.2],
-["Banana (lakatan)","1 medium",105,1.3,27,0.4],["Mango, ripe","1 cup sliced",100,1.4,25,0.6],["Apple","1 medium",95,0.5,25,0.3],["Papaya","1 cup cubed",62,0.7,16,0.4],
-["Pancit canton (instant)","1 pack (60 g)",300,6,38,13],["Pancit bihon","1 cup",220,9,32,6],["Filipino spaghetti","1 cup",330,12,48,10],["Arroz caldo","1 bowl",280,14,40,7],
-["Champorado","1 bowl",300,6,58,6],["Siopao asado","1 piece",280,10,45,7],["Lumpiang shanghai","5 pieces",300,12,20,19],
-["Egg, whole","1 large",72,6.3,0.4,4.8],["Egg white","1 large",17,3.6,0.2,0.1],["Chicken breast, cooked","100 g",165,31,0,3.6],["Chicken thigh, cooked, skinless","100 g",209,26,0,10.9],
-["Chicken adobo","1 serving (150 g)",300,26,4,20],["Chicken tinola","1 bowl",220,24,8,10],["Fried chicken with skin","1 thigh",280,19,9,19],
-["Pork adobo","1 serving (150 g)",400,24,4,32],["Pork sinigang","1 bowl",320,22,10,21],["Lechon kawali","100 g",520,20,0,48],["Pork tocino","100 g",290,15,25,14],
-["Longganisa","2 links (80 g)",280,11,8,23],["Pork chop, grilled","1 chop (120 g)",280,30,0,17],["Beef tapa","100 g",230,24,6,12],["Bistek tagalog","1 serving",320,28,8,19],
-["Beef, lean ground, cooked","100 g",250,26,0,15],["Corned beef, canned","100 g",250,23,0,17],["Hotdog","1 piece",150,5,3,13],
-["Bangus (milkfish), fried","150 g",300,30,0,19],["Tilapia, grilled","1 fillet (120 g)",155,31,0,3],["Tuna in water, canned","1 can drained (130 g)",150,33,0,1],
-["Sardines in tomato sauce","1 can (155 g)",260,22,4,17],["Shrimp, cooked","100 g",99,24,0.2,0.3],["Salmon, baked","100 g",206,22,0,12],["Tofu (tokwa), firm","100 g",145,15,3,9],
-["Ginisang monggo","1 cup",210,12,25,7],["Pinakbet","1 cup",150,6,12,9],["Chopsuey","1 cup",150,8,12,8],["Adobong kangkong","1 cup",80,3,6,5],
-["Broccoli, steamed","1 cup",55,3.7,11,0.6],["Mixed salad greens","2 cups",20,1.5,4,0.2],
-["Whey protein","1 scoop (30 g)",120,24,3,1.5],["Greek yogurt, plain nonfat","170 g",100,17,6,0.7],["Milk, whole","1 cup (240 ml)",150,8,12,8],["Milk, skim","1 cup (240 ml)",85,8,12,0.2],
-["Cheddar cheese","30 g",115,7,0.4,9.5],["Peanut butter","2 tbsp (32 g)",190,8,7,16],["Peanuts, roasted","30 g",170,7,5,14],["Almonds","30 g",170,6,6,15],
-["Olive oil","1 tbsp",120,0,0,14],["Cooking oil","1 tbsp",120,0,0,14],["Butter","1 tbsp",100,0.1,0,11],
-["Burger, regular","1 sandwich",300,15,32,12],["French fries","1 medium",340,4,44,16],["Cheese pizza","1 slice",285,12,36,10],
-["Turon","1 piece",200,1.5,35,7],["Banana cue","1 stick",230,1.5,48,5],["Puto","1 piece",90,1.5,19,0.5],["Ice cream","1/2 cup",140,2.5,16,7],
-["Dark chocolate 70%","30 g",170,2.2,13,12],["Protein bar","1 bar",200,20,22,7],["Coffee, black","1 cup",2,0.3,0,0],["3-in-1 coffee","1 sachet",100,1,18,3],
-["Soft drink","1 can (330 ml)",140,0,39,0],["Beer, regular","1 bottle (330 ml)",145,1.5,12,0],["Orange juice","1 cup",110,1.7,26,0.5],["Iced tea, sweetened","1 glass",90,0,23,0]];
+/* ---- food database: per-100 g (or ml) nutrition + real serving units ---- */
+const FOOD_TEXT=`#grain Rice, grains & noodles
+White rice, cooked|kanin,steamed rice,bigas|130 2.7 28.2 0.3|cup=158;half cup=79;rice paddle scoop=120;plate (1.5 cups)=237
+Brown rice, cooked|kanin|123 2.7 25.6 1|cup=195;half cup=98
+Red rice, cooked|pulang bigas|111 2.6 23 0.9|cup=195
+Jasmine rice, cooked|kanin|129 2.7 28 0.3|cup=158
+Garlic fried rice|sinangag|170 3 28 5|cup=160;half cup=80
+Java rice|yellow rice|165 3 28 4.5|cup=160
+Chinese fried rice|yang chow|163 4.5 24 5.5|cup=170
+Quinoa, cooked||120 4.4 21.3 1.9|cup=185;half cup=93
+Rolled oats, dry|oatmeal,quaker|379 13.2 67.7 6.5|cup=81;half cup=40;tbsp=5
+Oatmeal, cooked with water|lugaw oats|71 2.5 12 1.5|cup=234
+Pasta, cooked|spaghetti noodles,macaroni|158 5.8 30.9 0.9|cup=140;half cup=70
+Whole wheat pasta, cooked||149 6 30 1.7|cup=140
+Egg noodles, cooked|miki|138 4.5 25 2.1|cup=160
+Rice noodles, cooked|bihon|108 1.8 24 0.2|cup=176
+Glass noodles, cooked|sotanghon,vermicelli|86 0.1 21 0.1|cup=140
+Instant noodles, dry|ramen,lucky me,cup noodles|448 9.5 63 17|pack=55
+Instant pancit canton, dry|lucky me canton|460 9 60 20|pack=60
+Sweet corn, boiled|mais|96 3.4 21 1.5|ear=103;cup=149
+Sweet potato, boiled|kamote,camote|76 1.4 17.7 0.1|medium=150;cup=200
+Potato, boiled|patatas|87 1.9 20 0.1|medium=170;cup=156
+Mashed potato|patatas|113 2 17 4.2|cup=210;half cup=105
+Cassava, boiled|kamoteng kahoy,balinghoy|150 1.3 36 0.3|cup=206
+Taro, boiled|gabi|142 0.5 34.6 0.1|cup=132
+Couscous, cooked||112 3.8 23 0.2|cup=157
+Corn tortilla||218 5.7 44.6 2.9|piece=26
+Flour tortilla|wrap|306 8 50 8|piece (8 in)=45;large (10 in)=70
+Granola||471 10 64 20|half cup=61;tbsp=8
+Corn flakes|cereal|357 7.5 84 0.4|cup=28
+#bread Bread & bakery
+Pandesal|pan de sal|300 8.7 53 5|piece=30;large piece=45
+White bread|tasty,gardenia|265 9 49 3.2|slice=28
+Whole wheat bread|wheat bread|252 12.5 43 3.5|slice=32
+Ensaymada||400 8 48 19|piece=75
+Spanish bread||360 7 55 12|piece=50
+Monay||300 8 56 4|piece=60
+Pan de coco||340 7 55 10|piece=55
+Bagel, plain||257 10 50 1.6|piece=105
+Croissant||406 8.2 45.8 21|piece=57
+Hamburger bun||279 9.5 50 4.3|piece=52
+Hotdog bun||279 9.5 50 4.3|piece=44
+Pancake|hotcake|227 6.4 28 10|medium (6 in)=77;small (4 in)=38
+Waffle||291 7.9 33 14|piece=75
+Crackers|skyflakes,biskwit|430 9 70 13|pack=25;piece=6
+Chocolate cake||371 5.3 53 16|slice=95
+Glazed donut|doughnut|421 5.7 49 23|piece=60
+Blueberry muffin|muffin|377 4.4 54 16|piece=113
+Chocolate chip cookie|cookie|488 5.4 64 24|piece=16
+Mamon|sponge cake|380 7 55 14|piece=40
+Siopao asado|siopao|244 8.7 39 6.1|piece=115
+Siopao bola-bola|siopao|250 10 36 7|piece=120
+Hopia|hopia mongo|380 7 58 13|piece=40
+Cheese bread|cheese roll|330 9 48 11|piece=45
+Banana bread||326 4.3 55 10.5|slice=60
+#filipino Filipino dishes (ulam)
+Chicken adobo|adobong manok|200 17.3 2.7 13.3|serving=150;cup=200;piece=100
+Pork adobo|adobong baboy|267 16 2.7 21.3|serving=150;cup=200
+Adobong pusit|squid adobo|140 16 5 6|cup=180
+Chicken tinola|tinolang manok|73 8 2.7 3.3|bowl=300;cup=240
+Pork sinigang|sinigang na baboy|107 7.3 3.3 7|bowl=300;cup=240
+Shrimp sinigang|sinigang na hipon|50 6 3 1.5|bowl=300;cup=240
+Fish sinigang|sinigang na isda,bangus|60 7 3 2|bowl=300
+Bulalo|beef marrow soup|110 9 3 7|bowl=350
+Nilagang baka|nilaga,beef soup|85 8 4 4|bowl=350
+Kare-kare|kare kare,oxtail|190 12 7 13|cup=220;serving=200
+Lechon kawali|crispy pork belly|520 20 0 48|serving=100;piece=30
+Lechon|roast pig,lechon baboy|420 25 0 35|serving=100
+Crispy pata||450 25 1 39|serving=150
+Pork sisig|sisig|300 16 4 25|serving=150;cup=180
+Bistek tagalog|beefsteak|160 14 5 9.5|serving=200
+Beef caldereta|kaldereta|170 12 6 11|cup=220
+Pork menudo|menudo|160 10 7 10|cup=220
+Chicken afritada|afritada|140 11 6 8|cup=220
+Beef mechado|mechado|170 12 6 11|cup=220
+Pochero||120 9 8 6|cup=240
+Dinuguan|pork blood stew|190 13 3 14|cup=220
+Bicol express||260 9 5 23|cup=200
+Laing|taro leaves|180 4 8 15|cup=180
+Pinakbet|pakbet|70 2.8 6 4|cup=210
+Chopsuey|chop suey|65 3.5 6 3.3|cup=230
+Ginisang monggo|mung bean soup,munggo|95 5.5 11 3|cup=220
+Ginataang kalabasa|squash in coconut milk|90 2 9 5.5|cup=220
+Ginataang manok|chicken in coconut milk|160 11 4 11|cup=220
+Pancit canton|pansit canton|150 7 20 5|cup=200;plate=300
+Pancit bihon|pansit bihon|125 5 18 3.5|cup=175;plate=300
+Pancit palabok|palabok|150 6 22 4.5|plate=300
+Pancit malabon||160 7 22 5|plate=300
+Lomi||70 4 9 2|bowl=400
+Beef mami|mami|55 4 7 1.3|bowl=450
+Arroz caldo|lugaw with chicken|75 3.7 10.7 1.9|bowl=375;cup=240
+Plain lugaw|rice porridge,congee|50 1 11 0.1|bowl=375
+Goto|lugaw with tripe|80 4 10 2.5|bowl=375
+Champorado|chocolate rice porridge|85 1.7 16 1.7|bowl=350
+Tapsilog|tapa sinangag itlog|200 11 20 8.5|plate=350
+Tocilog|tocino sinangag itlog|230 9 27 9.5|plate=350
+Longsilog|longganisa sinangag itlog|250 8 24 13.5|plate=350
+Bangsilog|bangus sinangag itlog|200 11 20 8.5|plate=380
+Lumpiang shanghai|spring roll,lumpia|300 12 20 19|piece=20
+Fresh lumpia|lumpiang sariwa|130 4 16 6|piece=150
+Lumpiang togue|vegetable spring roll|180 4 20 9|piece=80
+Tortang talong|eggplant omelette|130 6 6 9|piece=150
+Tortang giniling|meat omelette|200 13 4 15|piece=120
+Daing na bangus|fried milkfish|200 20 0 12.7|serving=150
+Paksiw na isda|paksiw|120 18 3 4|serving=150
+Escabeche|sweet and sour fish|180 14 12 8|serving=200
+Kinilaw|kilawin,ceviche|90 15 4 1.5|cup=150
+Embutido|meatloaf|260 13 9 19|slice=50
+Tokwa't baboy|tokwa at baboy|200 14 6 13|cup=180
+Chicken inasal|inasal|210 22 2 13|leg quarter=250;serving=150
+Pork barbecue|pork bbq,inihaw|260 18 10 16|stick=60
+Isaw|grilled chicken intestine|190 18 3 12|stick=25
+Kwek-kwek|tokneneng|250 10 18 15|piece=25
+Fish balls|fishball|180 7 20 8|piece=8;stick (5 pcs)=40
+Kikiam||220 8 22 11|piece=20
+Pork siomai|siomai,shumai|200 10 15 11|piece=25
+Pork tocino|tocino|290 15 25 14|serving=100;piece=25
+Longganisa|longanisa|350 14 10 29|link=40
+Skinless longganisa||300 13 12 22|link=35
+Beef tapa|tapa|230 24 6 12|serving=100
+Tuyo, fried|dried fish|300 55 0 8|piece=12
+Dilis, fried|dried anchovies|380 60 1 14|tbsp=6;cup=40
+Shrimp paste|bagoong alamang|150 15 8 6|tbsp=18
+Balut||270 19 2.5 19|piece=70
+Halo-halo|halo halo|130 2.5 25 2.5|glass=350
+#merienda Filipino merienda & desserts
+Turon|banana lumpia|250 1.9 44 8.8|piece=80
+Banana cue|banana q|230 1.5 48 5|stick=100
+Camote cue|kamote cue|210 1 42 5|stick=100
+Bibingka|rice cake|230 5 38 6.5|piece=120
+Puto|steamed rice cake|225 3.8 47.5 1.3|piece=40
+Kutsinta|cuchinta|190 1 45 0.5|piece=40
+Suman|suman sa ibos|200 3 40 4|piece=80
+Biko|sticky rice cake|280 3 50 8|slice=80
+Leche flan|leche plan,flan|220 6 30 8.5|slice=80
+Ube halaya|ube jam|230 2.5 45 5|tbsp=20;half cup=100
+Maja blanca||160 1.5 25 6|slice=80
+Taho|soy pudding|70 3 13 1|cup=240
+Polvoron||500 9 60 25|piece=15
+Mango float||260 3 32 14|slice=120
+Buko pie|coconut pie|300 4 40 14|slice=120
+Sapin-sapin||210 2 40 5|slice=80
+Palitaw||200 2 40 4|piece=40
+Ginataang bilo-bilo|binignit|170 2 28 6|cup=250
+Buko salad|fruit salad|200 2.5 30 8|half cup=120
+#meat Pork & beef
+Pork chop, grilled|porkchop|231 26 0 14|piece=120
+Pork belly, raw|liempo|518 9.3 0 53|serving=100
+Grilled pork belly|inihaw na liempo|420 18 0 38|serving=100;slice=40
+Pork tenderloin, cooked|lomo|143 26 0 3.5|serving=100
+Ground pork, cooked|giniling|297 26 0 21|cup=140;serving=100
+Pork giniling guisado|giniling|220 15 6 15|cup=200
+Lean ground beef, cooked|giniling na baka|217 26 0 12|serving=100;patty=85
+Beef sirloin, grilled|steak|201 30 0 8|serving=100;steak=200
+Beef brisket, cooked||291 23 0 21|serving=100
+Corned beef, canned|carne norte|250 27 0 15|half can=105;tbsp=15
+Bacon, cooked||541 37 1.4 42|slice=8
+Ham, sliced|hamon|145 21 1.5 6|slice=28
+Hotdog|hot dog,sausage|290 10 4 26|piece=45;jumbo=75
+Luncheon meat|spam,maling|315 13 4 27|slice=56;can=340
+Vienna sausage||230 10 3 20|piece=16
+Chorizo||455 24 2 38|link=60
+Meatballs|bola-bola|240 14 8 17|piece=30
+#poultry Chicken & poultry
+Chicken breast, skinless, cooked|manok,dibdib|165 31 0 3.6|half breast=172;serving=100;cup diced=140
+Chicken thigh, skinless, cooked|manok,hita|209 26 0 10.9|thigh=95
+Chicken thigh with skin, cooked|manok|229 23 0 15|thigh=110
+Chicken drumstick with skin, cooked|manok,drumstick|216 27 0 11.2|drumstick=95
+Chicken wing with skin, roasted|manok,pakpak|290 27 0 19.5|wing=34
+Fried chicken with skin|pritong manok|260 19 9 16|thigh=130;drumstick=95;wing=50
+Rotisserie chicken|lechon manok|190 25 0 10|quarter=230;serving=100
+Chicken nuggets|nuggets|296 15 15 19|piece=16
+Ground chicken, cooked||189 23 0 10|serving=100
+Turkey breast, sliced||104 17 4 2|slice=28
+Chicken liver, cooked|atay|167 24 1 6.5|serving=100
+#fish Fish & seafood
+Bangus, fried|milkfish|200 20 0 13|serving=150;slice=80
+Bangus, grilled|milkfish,inihaw na bangus|170 22 0 9|serving=150
+Tilapia, grilled||128 26 0 2.7|fillet=120;whole small=150
+Tilapia, fried|pritong tilapia|200 24 3 10|piece=150
+Galunggong, fried|gg,round scad|210 25 0 12|piece=60
+Tuna steak, grilled|tuna panga|132 28 0 1.3|serving=100
+Tuna in water, canned|tuna|116 25.5 0 0.8|can drained=130;half cup=77
+Tuna in oil, canned|century tuna|198 29 0 8|can drained=130
+Sardines in tomato sauce|sardinas,sardines|185 18 3 11|can=155
+Salmon, baked||206 22 0 12.4|fillet=154;serving=100
+Shrimp, cooked|hipon|99 24 0.2 0.3|serving=100;large shrimp=7
+Squid, grilled|pusit,inihaw na pusit|110 18 4 2|serving=100
+Calamares|fried squid|175 18 8 7.5|serving=100
+Crab, steamed|alimango,alimasag|97 19 0 1.5|serving=100
+Mussels, steamed|tahong|172 24 7 4.5|cup=150
+Clams|halaan,tulya|148 25.5 5 2|cup=150
+Breaded fish fillet|fish fillet|232 15 15 13|piece=60
+Dried squid|pusit|300 60 3 4|serving=30
+#egg Eggs & dairy
+Egg, boiled|itlog,nilagang itlog|155 12.6 1.1 10.6|large=50;medium=44;small=38
+Egg, fried|pritong itlog|196 13.6 0.8 15|large=46
+Scrambled eggs|itlog|149 10 1.6 11|large egg=61;cup=220
+Egg white|puti ng itlog|52 11 0.7 0.2|large=33;cup=243
+Salted egg|itlog na maalat,itlog na pula|185 14 1 13.5|piece=60
+Quail egg|itlog pugo|158 13 0.4 11|piece=9
+Whole milk|gatas|61 3.2 4.8 3.3|cup=244;glass=250|ml
+Low-fat milk|gatas|42 3.4 5 1|cup=244;glass=250|ml
+Skim milk|gatas|35 3.4 5 0.1|cup=244;glass=250|ml
+Evaporated milk|alaska evap|134 6.8 10 7.6|tbsp=15;cup=252|ml
+Sweetened condensed milk|condensada|321 7.9 54 8.7|tbsp=19
+Powdered full cream milk|bear brand,nido|496 26 38 27|tbsp=8;scoop=32
+Soy milk, unsweetened|soya milk|33 2.9 1.7 1.8|cup=243|ml
+Almond milk, unsweetened||15 0.6 0.3 1.2|cup=240|ml
+Greek yogurt, plain nonfat|yogurt|59 10.2 3.6 0.4|container=170;cup=227
+Greek yogurt, plain whole|yogurt|97 9 4 5|container=170
+Flavored low-fat yogurt|yogurt|99 4 18.6 1|small cup=125;cup=245
+Cheddar cheese|keso|403 25 1.3 33|slice=21;cube=17;tbsp shredded=7
+Processed cheese|eden,quickmelt,keso|330 18 8 25|slice=20;tbsp grated=7
+Mozzarella||280 28 3 17|slice=28;cup shredded=112
+Cream cheese||342 6 4 34|tbsp=14.5
+Kesong puti|white cheese|200 15 3 14|slice=30
+Parmesan, grated||431 38 4 29|tbsp=5
+Cottage cheese, low fat||81 10.5 4 2.3|half cup=113;cup=226
+Butter|mantikilya|717 0.9 0.1 81|tbsp=14;tsp=5
+Vanilla ice cream|sorbetes|207 3.5 23.6 11|scoop=66;half cup=66
+#veg Vegetables
+Broccoli, steamed||35 2.4 7.2 0.4|cup=156
+Water spinach, cooked|kangkong|20 2.6 3 0.2|cup=98
+Adobong kangkong|kangkong|61 2.3 4.6 3.8|cup=130
+Bok choy, cooked|pechay|12 1.6 1.8 0.2|cup=170
+Bitter gourd, cooked|ampalaya|19 0.8 4.3 0.2|cup=124
+Ampalaya with egg|ginisang ampalaya|80 4.5 5 5|cup=200
+Eggplant, grilled|talong|35 0.8 8.7 0.2|piece=150;cup=99
+Moringa leaves|malunggay|64 9.4 8.3 1.4|cup=21
+String beans, cooked|sitaw|47 2.5 9 0.1|cup=104
+Okra, cooked||22 1.9 4.5 0.2|cup=160
+Squash, cooked|kalabasa|40 0.9 10.5 0.1|cup=205
+Chayote, cooked|sayote|24 0.6 5 0.5|cup=160
+Cabbage, cooked|repolyo|23 1.3 5.5 0.1|cup=150
+Carrots, raw|karot|41 0.9 9.6 0.2|medium=61;cup chopped=128
+Tomato|kamatis|18 0.9 3.9 0.2|medium=123;slice=20
+Cucumber|pipino|15 0.7 3.6 0.1|cup sliced=104;medium=200
+Romaine lettuce|litsugas|17 1.2 3.3 0.3|cup shredded=47
+Mixed salad greens|salad|21 1.5 3.7 0.2|cup=36
+Spinach, raw||23 2.9 3.6 0.4|cup=30
+Onion|sibuyas|40 1.1 9.3 0.1|medium=110;tbsp chopped=10
+Garlic|bawang|149 6.4 33 0.5|clove=3
+Bell pepper|siling pula|31 1 6 0.3|medium=119
+Mushrooms, sauteed|kabute|28 2.2 5.3 0.5|cup=156
+Bean sprouts|togue|30 3 6 0.2|cup=104
+Green peas, cooked|gisantes|84 5.4 15.6 0.2|cup=160;half cup=80
+Coleslaw||150 1 13 11|half cup=60
+#fruit Fruits
+Banana|saging,lakatan,latundan|89 1.1 22.8 0.3|medium=118;small=90
+Saba banana, boiled|saging na saba,nilagang saging|116 0.8 31 0.2|piece=90
+Ripe mango|mangga|60 0.8 15 0.4|medium=200;cup sliced=165;cheek=100
+Green mango|manggang hilaw|65 0.5 17 0.2|half=100
+Apple|mansanas|52 0.3 13.8 0.2|medium=182
+Orange|dalandan,kahel|47 0.9 11.8 0.1|medium=131
+Papaya|papaya|43 0.5 10.8 0.3|cup cubed=145;slice=150
+Pineapple|pinya|50 0.5 13.1 0.1|cup chunks=165;slice=84
+Watermelon|pakwan|30 0.6 7.6 0.2|cup diced=152;wedge=286
+Grapes|ubas|69 0.7 18 0.2|cup=151;piece=5
+Calamansi||37 0.6 9 0.2|piece=12
+Guava|bayabas|68 2.6 14.3 1|medium=55
+Pomelo|suha|38 0.8 9.6 0|cup=190
+Rambutan||82 0.7 21 0.2|piece=9
+Lanzones||57 1 14 0.2|piece=12
+Chico|sapodilla|83 0.4 20 1.1|piece=170
+Jackfruit|langka|95 1.7 23 0.6|cup=165;bulb=15
+Durian||147 1.5 27 5.3|cup=243
+Avocado|abokado|160 2 8.5 14.7|half=100;cup cubed=150
+Strawberries|strawberry|32 0.7 7.7 0.3|cup=152;piece=12
+Blueberries||57 0.7 14.5 0.3|cup=148
+Pear|peras|57 0.4 15 0.1|medium=178
+Dragon fruit|pitaya|60 1.2 13 0|half=150
+Shredded coconut, fresh|niyog,buko|354 3.3 15.2 33.5|cup=80;tbsp=5
+Raisins|pasas|299 3.1 79 0.5|tbsp=9;small box=43
+Dates|dates|277 1.8 75 0.2|piece=24
+Dried mango|dried mangoes|340 1.5 85 0.5|piece=10;pack=100
+#legume Beans, nuts & seeds
+Peanuts, roasted|mani|585 24 21.5 49.7|handful=30;tbsp=9;cup=146
+Garlic peanuts|adobong mani|600 24 20 50|handful=30;tbsp=9
+Peanut butter||588 25 20 50|tbsp=16;tsp=5
+Almonds||579 21 21.6 49.9|handful=30;piece=1.2;cup=143
+Cashews|kasoy|553 18 30 44|handful=30
+Walnuts||654 15 13.7 65|handful=30
+Pumpkin seeds|butong kalabasa|559 30 10.7 49|tbsp=8;handful=30
+Chia seeds||486 16.5 42 30.7|tbsp=12
+Mung beans, boiled|monggo,munggo|105 7 19 0.4|cup=202
+Black beans, cooked||132 8.9 23.7 0.5|cup=172
+Chickpeas, cooked|garbanzos|164 8.9 27.4 2.6|cup=164
+Kidney beans, cooked||127 8.7 22.8 0.5|cup=177
+Lentils, cooked||116 9 20 0.4|cup=198
+Firm tofu|tokwa,tofu|144 15.8 2.8 8.7|half block=150;slice=50
+Edamame||121 11.9 8.9 5.2|cup=155
+Hummus||166 7.9 14.3 9.6|tbsp=15
+Baked beans|pork and beans|94 4.8 21 0.4|half cup=127;cup=254
+#snack Snacks & sweets
+Pork rinds|chicharon,chicharron|544 61 0 31|piece=5;small bag=30
+Potato chips|chips|536 7 53 35|small bag=28;piece=2
+Corn and potato chips|nova,piattos,chippy|500 6 63 25|pack=40
+Buttered popcorn|popcorn|500 9 58 28|cup=11
+Air-popped popcorn|popcorn|387 13 78 4.5|cup=8
+Milk chocolate|tsokolate|535 7.6 59 30|bar=45;square=10
+Dark chocolate 70%|tsokolate|598 7.8 46 43|square=10;bar=100
+Chocolate bar with nuts|snickers|488 7.5 60 24|bar=52
+Gummy candies|gummies|343 7 77 0|piece=2.5
+Hard candy|kendi|394 0 98 0.2|piece=6
+Rice crackers||380 8 81 3|piece=8
+Marie biscuits|biskwit|440 7 75 12|piece=7
+Sandwich cookies|oreo|480 5 69 20|piece=11
+Wafer|rebisco,wafer|520 5 63 27|piece=9;pack=32
+Cupcake||380 4 55 17|piece=60
+Brownie||466 6.2 50 29|piece=56
+Granola bar||434 7 68 15|bar=28
+Trail mix||462 14 45 29|handful=30
+#fast Fast food & restaurant
+Hamburger|burger|254 12.7 30 9.4|sandwich=118
+Cheeseburger|burger|263 13 26 12|sandwich=120
+Quarter-pound cheeseburger|burger|263 15 20 14|sandwich=200
+Fried chicken sandwich|chicken burger|260 12 26 12|sandwich=180
+French fries|fries|312 3.4 41 15|small=71;medium=117;large=154
+Fast-food fried chicken|chickenjoy,kfc|260 19 9 16|thigh=130;drumstick=95
+Filipino-style spaghetti|jolly spaghetti,sweet spaghetti|150 5.5 22 4.5|regular=230;cup=220
+Burger steak with gravy|burger steak|180 11 8 12|serving=150
+Cheese pizza|pizza|266 11 33 10|slice=107
+Pepperoni pizza|pizza|285 12 32 12|slice=110
+Shawarma wrap|shawarma|220 11 20 11|wrap=250
+Hotdog sandwich|hotdog|280 10 25 15|sandwich=100
+Restaurant ramen|ramen|90 4.5 11 3|bowl=550
+California maki|sushi,maki|129 2.6 25 1.8|piece=30
+Taco||226 9 20 12|piece=100
+Burrito||206 8 26 7.5|piece=220
+Mac and cheese|macaroni|164 6.5 20 6.5|cup=200
+Caesar salad|salad|190 5 6 16|bowl=200
+Club sandwich|sandwich|240 13 22 11|sandwich=250
+#drink Drinks
+Water|tubig|0 0 0 0|glass=250;bottle=500|ml
+Black coffee|kape,americano|1 0.1 0 0|cup=240|ml
+Coffee with milk and sugar|kape|38 0.8 6.5 1|cup=240|ml
+3-in-1 coffee, prepared|nescafe,kopiko,great taste|57 0.6 10 1.7|sachet in water=175|ml
+Cafe latte|latte|54 2.9 4.7 2.7|tall=355;grande=473|ml
+Blended iced coffee|frappe,frappuccino|80 1.3 14 2.3|grande=473|ml
+Milk tea with pearls|boba,bubble tea|80 0.6 15 2|medium=500;large=700|ml
+Cola|coke,soft drink,soda,softdrinks|42 0 10.6 0|can=330;bottle=500;glass=240|ml
+Diet soda|coke zero|0 0 0 0|can=330|ml
+Orange juice|juice|45 0.7 10.4 0.2|glass=240|ml
+Mango shake|fruit shake|70 0.9 16 0.5|glass=350|ml
+Coconut water|buko juice|19 0.7 3.7 0.2|cup=240;whole buko=350|ml
+Calamansi juice, sweetened|calamansi|40 0.1 10 0|glass=240|ml
+Sweetened iced tea|iced tea,nestea|36 0 9 0|glass=250|ml
+Sports drink|gatorade,pocari|26 0 6.4 0|bottle=500|ml
+Energy drink|cobra,sting,red bull|45 0 11 0|can=250|ml
+Beer|serbesa,san miguel,red horse|43 0.5 3.6 0|bottle=330;can=330|ml
+Light beer|san mig light|29 0.2 1.6 0|bottle=330|ml
+Red wine|wine|85 0.1 2.6 0|glass=150|ml
+Spirits, 40% alcohol|rum,gin,brandy,whisky,tanduay|231 0 0 0|shot=44|ml
+Chocolate milk|choco milk|76 3.2 10.4 2.4|glass=250|ml
+Hot chocolate|tablea,sikwate|77 3.5 11 2.3|cup=240|ml
+Meal replacement shake|ensure|100 4 13 3.5|glass=250|ml
+#fat Oils, sauces & condiments
+Cooking oil|mantika,vegetable oil|884 0 0 100|tbsp=13.6;tsp=4.5
+Olive oil||884 0 0 100|tbsp=13.5;tsp=4.5
+Coconut oil||892 0 0 99|tbsp=13.6
+Margarine|star margarine|717 0.2 0.7 80|tbsp=14
+Mayonnaise|mayo|680 1 0.6 75|tbsp=14
+Banana ketchup|ketchup,catsup|120 0.2 30 0|tbsp=17
+Soy sauce|toyo|53 8 4.9 0.6|tbsp=16
+Fish sauce|patis|35 5 3.6 0|tbsp=18
+Vinegar|suka|18 0 0.04 0|tbsp=15
+Oyster sauce||51 1.4 11 0.3|tbsp=18
+Gravy||50 1.3 5 2.6|tbsp=16;ladle=60
+Lechon sauce|mang tomas,sarsa|175 1 40 1|tbsp=18
+Sweet chili sauce||200 0.5 49 0.5|tbsp=18
+White sugar|asukal|387 0 100 0|tsp=4.2;tbsp=12.5
+Brown sugar|asukal na pula,muscovado|380 0.1 98 0|tsp=4.6;tbsp=14
+Honey|pulot|304 0.3 82 0|tbsp=21;tsp=7
+Ranch dressing|dressing|430 1 6 44|tbsp=15
+Fruit jam|jam,jelly|278 0.4 69 0.1|tbsp=20
+Chocolate hazelnut spread|nutella|539 6.3 57.5 31|tbsp=18.5
+Coconut milk|gata|230 2.3 5.5 24|cup=240;tbsp=15
+Liver spread|reno|300 12 6 25|tbsp=15
+#supp Protein & supplements
+Whey protein powder|whey,protein shake|400 80 10 5|scoop=30
+Plant protein powder|vegan protein|380 75 8 7|scoop=33
+Mass gainer||380 15 75 2|scoop=75
+Protein bar||333 33 37 12|bar=60
+Collagen peptides|collagen|360 90 0 0|scoop=10
+Creatine monohydrate|creatine|0 0 0 0|scoop=5`;
+const FCATS=[],FDB=[],FBY={};
+(()=>{let cat=null;FOOD_TEXT.split("\n").forEach(l=>{l=l.trim();if(!l)return;
+  if(l[0]==="#"){const sp=l.indexOf(" ");cat={id:l.slice(1,sp),name:l.slice(sp+1)};FCATS.push(cat);return}
+  const [name,al,nut,un,base]=l.split("|");const [k,p,c,f]=nut.split(" ").map(Number),b=base==="ml"?"ml":"g";
+  const units=[...(un?un.split(";").map(s=>{const i=s.lastIndexOf("=");return{n:s.slice(0,i),g:+s.slice(i+1)}}):[]),{n:b,g:1},b==="g"?{n:"oz",g:28.35}:{n:"fl oz",g:29.57}];
+  const d={id:name.toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,""),name,al:al?al.split(","):[],cat:cat.id,k,p,c,f,b,units};FDB.push(d);FBY[d.id]=d})})();
+const r2=v=>Math.round(v*10000)/10000;
+const ulabel=(u,b)=>u.n===b?b:`${u.n} (${Math.round(u.g)} ${b})`;
+function dbF(d){return{fid:d.id,name:d.name,cat:d.cat,b:d.b,per100:{k:d.k,p:d.p,c:d.c,f:d.f},
+  units:d.units.map(u=>({n:u.n,label:ulabel(u,d.b),base:u.n===d.b,k:r2(d.k*u.g/100),p:r2(d.p*u.g/100),c:r2(d.c*u.g/100),f:r2(d.f*u.g/100)}))}}
+function customF(x){const units=[{n:x.serving,label:x.serving,k:+x.kcal||0,p:+x.p||0,c:+x.c||0,f:+x.f||0}];let per100=null;
+  if(+x.g>0){const r=1/x.g;per100={k:x.kcal*r*100,p:x.p*r*100,c:x.c*r*100,f:x.f*r*100};units.push({n:"g",label:"g",base:true,k:r2(x.kcal*r),p:r2(x.p*r),c:r2(x.c*r),f:r2(x.f*r)},{n:"oz",label:"oz (28 g)",k:r2(x.kcal*r*28.35),p:r2(x.p*r*28.35),c:r2(x.c*r*28.35),f:r2(x.f*r*28.35)})}
+  return{cid:x.name,mine:1,name:x.name,b:"g",per100,units}}
+function itemF(x){if(x.fid&&FBY[x.fid])return dbF(FBY[x.fid]);const m=(S.custom.foods||[]).find(c=>c.name===x.name);if(m)return customF(m);
+  return{name:x.name,units:[{n:x.serving,label:x.serving,k:+x.kcal||0,p:+x.p||0,c:+x.c||0,f:+x.f||0}]}}
+const defAmt=u=>u.base?100:1;
+const servTxt=x=>{const q=+x.qty||1;return /^(g|ml)$/.test(x.serving)?`${fmtQ(q)} ${x.serving}`:q===1?x.serving:`${fmtQ(q)} × ${x.serving}`};
+function allFoods(){return[...(S.custom.foods||[]).map(customF),...FDB.map(dbF)]}
+function searchFoods(q){const toks=q.toLowerCase().split(/[\s,]+/).filter(Boolean);if(!toks.length)return[];const out=[];
+  const pool=[...(S.custom.foods||[]).map(x=>[x.name,[],()=>customF(x),3]),...FDB.map(d=>[d.name,d.al,()=>dbF(d),0])];
+  for(const [name,al,mk,bonus] of pool){const nm=name.toLowerCase(),hay=nm+" "+al.join(" ").toLowerCase();if(!toks.every(t=>hay.includes(t)))continue;
+    let s=bonus;if(al.some(a=>a.toLowerCase()===toks[0])||nm===toks[0])s+=9;if(nm.startsWith(toks[0]))s+=6;if(al.some(a=>a.toLowerCase().startsWith(toks[0])))s+=5;if(nm.split(/[\s,()-]+/).some(w=>w.startsWith(toks[0])))s+=3;s-=nm.length/60;out.push([s,mk])}
+  return out.sort((a,b)=>b[0]-a[0]).slice(0,60).map(x=>x[1]())}
 const MEALS=[["breakfast","Breakfast"],["lunch","Lunch"],["dinner","Dinner"],["snacks","Snacks"]];
+
+/* ---- diary helpers ---- */
+function addItems(date,arr){setItems(date,[...items(date).map(cl),...arr.map(x=>{const o={id:uid(),meal:x.meal,name:String(x.name||"Food").slice(0,80),serving:String(x.serving||"1 serving").slice(0,48),qty:+x.qty>0?+x.qty:1,kcal:+x.kcal||0,p:+x.p||0,c:+x.c||0,f:+x.f||0};if(x.fid)o.fid=x.fid;if(x.u)o.u=x.u;return o})])}
+const itemFromUnit=(F,u,amt,meal)=>({meal,name:F.name,serving:u.label,qty:amt,kcal:u.k,p:u.p,c:u.c,f:u.f,fid:F.fid,u:u.n});
+function recentFoods(){const seen=new Set(),out=[];for(const d of Object.keys(S.food).sort().reverse()){for(const x of items(d).slice().reverse()){const k=(x.name+"|"+x.serving).toLowerCase();if(seen.has(k))continue;seen.add(k);out.push(cl(x));if(out.length>=40)return out}}return out}
+function frequentFoods(n=20){const cnt={},last={};Object.keys(S.food).sort().forEach(d=>items(d).forEach(x=>{const k=x.name.toLowerCase();cnt[k]=(cnt[k]||0)+1;last[k]=x}));
+  return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]).slice(0,n).map(k=>({...cl(last[k]),times:cnt[k]}))}
+const favs=()=>S.custom.favs||[];
+const favKey=F=>F.fid||("c:"+F.name);
+function toggleFav(F){const k=favKey(F),cur=favs();S.custom={...S.custom,favs:cur.includes(k)?cur.filter(x=>x!==k):[...cur,k]};queueWrite("app/custom",S.custom,0)}
+function favFoods(){return favs().map(k=>k.startsWith("c:")?(S.custom.foods||[]).filter(c=>c.name===k.slice(2)).map(customF)[0]:FBY[k]&&dbF(FBY[k])).filter(Boolean)}
+const defaultMeal=()=>{const h=new Date().getHours();return h<10?"breakfast":h<15?"lunch":h<21?"dinner":"snacks"};
+
+/* ---- add-food sheet ---- */
+function openFoodSheet(meal){
+  let tab=recentFoods().length?"recent":"browse",cat=FCATS[0].id,sel=null,list=[];
+  const TABS=[["recent","Recent"],["frequent","Frequent"],["favs","Favorites"],["browse","Browse"],["mine","My foods"],["meals","My meals"],["quick","Quick add"],["new","Create food"]];
+  const sh=sheet(`<div class="grab"></div><div class="row between"><h2>Add to ${esc(mealName(meal))}</h2><button type="button" class="btn sm ghost" data-close>Done</button></div>
+   <input id="fq" type="search" placeholder="Search ${FDB.length}+ foods: adobo, kanin, egg, oats…" autocomplete="off" style="margin-top:12px">
+   <div class="chips" id="ftabs" style="margin:10px 0 12px">${TABS.map(([k,n])=>`<button type="button" data-t="${k}" aria-pressed="${k===tab}">${n}</button>`).join("")}</div>
+   <div id="fbody"></div>`);
+  const body=sh.querySelector("#fbody"),q=sh.querySelector("#fq");
+  const row=(F,i,extra)=>{const u=F.units[F.ui??0],a=F.amt??defAmt(u);return `<button type="button" class="li" data-pick="${i}"><div style="min-width:0"><div class="t">${esc(F.name)}${F.mine?' <span class="pill info" style="font-size:9.5px;padding:1px 6px">mine</span>':""}</div><div class="s">${esc(fmtQ(a))} ${esc(u.label)}${extra?` · ${extra}`:""} · P ${n1(u.p*a)} C ${n1(u.c*a)} F ${n1(u.f*a)}</div></div><b class="num">${n0(u.k*a)}</b></button>`};
+  const fromItem=x=>{const F=itemF(x);let ui=F.units.findIndex(u=>u.n===x.u||u.label===x.serving);if(ui<0)ui=0;F.ui=ui;F.amt=+x.qty||defAmt(F.units[ui]);return F};
+  const empty=t=>`<div class="empty">${t}</div>`;
+  const draw=()=>{
+    if(sel){const F=sel,isFav=favs().includes(favKey(F));
+      body.innerHTML=`<div class="g" style="padding:16px"><div class="row between" style="flex-wrap:nowrap;align-items:flex-start"><div style="min-width:0"><h3 style="font-size:17px">${esc(F.name)}</h3><p class="muted" style="margin:2px 0 0;font-size:12px">${F.cat?esc((FCATS.find(c=>c.id===F.cat)||{}).name||""):F.mine?"My food":"From your diary"}</p></div>
+        <button type="button" class="btn sm ${isFav?"primary":"ghost"}" data-fav aria-pressed="${isFav}">${isFav?"★ Favorite":"☆ Favorite"}</button></div>
+       <div class="f2" style="grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);margin-top:14px"><label class="f">Amount<input id="famt" type="number" step="any" min="0" inputmode="decimal" value="${F.amt}"></label>
+        <label class="f">Unit<select id="funit">${F.units.map((u,i)=>`<option value="${i}" ${i===F.ui?"selected":""}>${esc(u.label)}</option>`).join("")}</select></label></div>
+       <div class="chips" id="fchips" style="margin-top:8px"></div>
+       <div id="fprev" class="macro" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px"></div>
+       <div id="fbar" style="margin-top:10px"></div>
+       ${F.per100?`<p class="muted mono" style="font-size:11px;margin:10px 0 0">Per 100 ${F.b}: ${n0(F.per100.k)} kcal · P ${n1(F.per100.p)} · C ${n1(F.per100.c)} · F ${n1(F.per100.f)}</p>`:""}
+       <div class="row" style="margin-top:14px"><button type="button" class="btn ghost" data-back>Back</button><button type="button" class="btn primary" data-addsel style="flex:1">Add to ${esc(mealName(meal))}</button></div></div>`;
+      const ai=sh.querySelector("#famt"),us=sh.querySelector("#funit");
+      const up=()=>{F.amt=+ai.value||0;F.ui=+us.value;const u=F.units[F.ui],a=F.amt;
+        sh.querySelector("#fprev").innerHTML=[["kcal",u.k,""],["Protein",u.p," g"],["Carbs",u.c," g"],["Fat",u.f," g"]].map(([n,v,s])=>`<div class="m"><span>${n}</span><b class="num">${n===`kcal`?n0(v*a):n1(v*a)}${s}</b></div>`).join("");
+        const kc=[u.p*4,u.c*4,u.f*9],t=kc[0]+kc[1]+kc[2]||1;sh.querySelector("#fbar").innerHTML=`<div style="display:flex;height:8px;border-radius:8px;overflow:hidden;background:rgba(150,180,255,.1)">${kc.map((v,i)=>`<i style="width:${v/t*100}%;background:${["#5ef2ff","#a184ff","#ff7ab8"][i]}"></i>`).join("")}</div><p class="muted" style="font-size:11px;margin:4px 0 0">${["Protein","Carbs","Fat"].map((n,i)=>`${n} ${Math.round(kc[i]/t*100)}%`).join(" · ")}</p>`};
+      const chips=()=>{const u=F.units[+us.value];sh.querySelector("#fchips").innerHTML=(u.base?(F.b==="ml"?[100,250,330,500]:[50,100,150,200,250]):[0.25,0.5,1,1.5,2,3]).map(v=>`<button type="button" data-amt="${v}">${fmtQ(v)}${u.base?" "+F.b:"×"}</button>`).join("")};
+      ai.oninput=up;us.onchange=()=>{const was=F.units[F.ui],now=F.units[+us.value];if(!!was.base!==!!now.base)ai.value=defAmt(now);chips();up()};chips();up();return}
+    if(tab==="quick"||tab==="new"){
+      body.innerHTML=`<form class="stack" id="fform">${tab==="new"?`<label class="f">Food name<input id="nf-name" required placeholder="e.g. Mom's chicken adobo"></label><div class="f2"><label class="f">Serving size<input id="nf-serv" required placeholder="1 cup"></label><label class="f">Serving weight in grams (optional)<input id="nf-g" type="number" step="any" placeholder="e.g. 200"></label></div>`:`<label class="f">Label (optional)<input id="nf-name" placeholder="Quick add"></label>`}
+        <div class="f2" style="grid-template-columns:repeat(2,minmax(0,1fr))"><label class="f">Calories<input id="nf-kcal" type="number" step="any" required></label><label class="f">Protein g<input id="nf-p" type="number" step="any"></label><label class="f">Carbs g<input id="nf-c" type="number" step="any"></label><label class="f">Fat g<input id="nf-f" type="number" step="any"></label></div>
+        ${tab==="new"?`<p class="muted" style="font-size:12px;margin:0">Values are per serving. Add the serving weight to log this food in grams and ounces too.</p>`:""}
+        <button class="btn primary" type="submit">${tab==="new"?"Save food and add":"Add to "+esc(mealName(meal))}</button></form>`;
+      sh.querySelector("#fform").onsubmit=e=>{e.preventDefault();const g=id=>{const el=sh.querySelector(id);return el?+el.value||0:0};
+        const x={name:sh.querySelector("#nf-name").value.trim()||"Quick add",serving:tab==="new"?sh.querySelector("#nf-serv").value.trim():"1 entry",kcal:g("#nf-kcal"),p:g("#nf-p"),c:g("#nf-c"),f:g("#nf-f")};
+        if(tab==="new"){if(g("#nf-g")>0)x.g=g("#nf-g");S.custom={...S.custom,foods:[...(S.custom.foods||[]).filter(c=>c.name!==x.name),x]};queueWrite("app/custom",S.custom,0)}
+        addItems(cur,[{...x,meal,qty:1}]);renderFood();toast("Added to "+mealName(meal));closeSheet()};return}
+    if(tab==="meals"){const ms=S.custom.meals||[];
+      body.innerHTML=ms.length?`<div class="list">${ms.map((m,i)=>{const t=m.items.reduce((s,x)=>s+x.kcal*x.qty,0);return `<div class="li" style="cursor:default"><div style="min-width:0"><div class="t">${esc(m.name)}</div><div class="s">${m.items.length} items · ${esc(m.items.map(x=>x.name).slice(0,4).join(", "))}</div></div><div class="row" style="gap:6px;flex-wrap:nowrap"><b class="num">${n0(t)}</b><button type="button" class="btn sm primary" data-meal-add="${i}">Add</button><button type="button" class="btn sm ghost" data-meal-del="${i}" aria-label="Delete ${esc(m.name)}">✕</button></div></div>`}).join("")}</div>`
+        :empty("Save any meal from the diary with <b>Save meal</b> to log it again in one tap.");return}
+    const qq=q.value.trim();
+    if(qq)list=searchFoods(qq);
+    else if(tab==="recent")list=recentFoods().map(fromItem);
+    else if(tab==="frequent")list=frequentFoods().map(x=>Object.assign(fromItem(x),{times:x.times}));
+    else if(tab==="favs")list=favFoods();
+    else if(tab==="mine")list=(S.custom.foods||[]).map(customF);
+    else list=FDB.filter(d=>d.cat===cat).map(dbF);
+    const catChips=!qq&&tab==="browse"?`<div class="chips hscroll" style="margin-bottom:10px">${FCATS.map(c=>`<button type="button" data-cat="${c.id}" aria-pressed="${c.id===cat}">${esc(c.name)}</button>`).join("")}</div>`:"";
+    body.innerHTML=catChips+(list.length?`<div class="list">${list.map((F,i)=>row(F,i,F.times?`logged ${F.times}×`:"")).join("")}</div>`
+      :empty(qq?`No match for “${esc(qq)}”. Try another word, <b>Quick add</b>, or <b>Create food</b>.`:tab==="recent"?"Foods you log appear here for one-tap adding.":tab==="frequent"?"Your most-logged foods appear here.":tab==="favs"?"Tap ☆ Favorite on any food to keep it here.":"Foods you create are saved here."))};
+  sh.addEventListener("click",e=>{
+    const t=e.target.closest("[data-t]");if(t){tab=t.dataset.t;sel=null;q.value="";sh.querySelectorAll("#ftabs button").forEach(b=>b.setAttribute("aria-pressed",b===t));draw();return}
+    const c=e.target.closest("[data-cat]");if(c){cat=c.dataset.cat;draw();return}
+    const pk=e.target.closest("[data-pick]");if(pk){sel=list[+pk.dataset.pick];if(sel.ui==null){sel.ui=0;sel.amt=defAmt(sel.units[0])}draw();return}
+    if(e.target.closest("[data-back]")){sel=null;draw();return}
+    if(e.target.closest("[data-fav]")){toggleFav(sel);draw();return}
+    const am=e.target.closest("[data-amt]");if(am){const el=sh.querySelector("#famt");el.value=am.dataset.amt;el.oninput();return}
+    if(e.target.closest("[data-addsel]")){const a=+sh.querySelector("#famt").value;if(!(a>0)){toast("Enter an amount");return}const u=sel.units[+sh.querySelector("#funit").value];
+      addItems(cur,[itemFromUnit(sel,u,a,meal)]);renderFood();toast(`${sel.name} added · ${n0(u.k*a)} kcal`);sel=null;q.value="";draw();return}
+    const ma=e.target.closest("[data-meal-add]");if(ma){const m=(S.custom.meals||[])[+ma.dataset.mealAdd];addItems(cur,m.items.map(x=>({...x,meal})));renderFood();toast(`${m.name} added`);closeSheet();return}
+    const md=e.target.closest("[data-meal-del]");if(md){if(!md.dataset.arm){md.dataset.arm=1;md.textContent="Delete?";return}const ms=[...(S.custom.meals||[])];ms.splice(+md.dataset.mealDel,1);S.custom={...S.custom,meals:ms};queueWrite("app/custom",S.custom,0);draw()}
+  });
+  q.addEventListener("input",()=>{sel=null;draw()});draw();
+}
+function openItemSheet(i){const x=items(cur)[i];if(!x)return;const F=itemF(x);let ui=F.units.findIndex(u=>u.n===x.u||u.label===x.serving);if(ui<0){F.units.unshift({n:x.serving,label:x.serving,k:x.kcal,p:x.p,c:x.c,f:x.f});ui=0}
+  const sh=sheet(`<div class="grab"></div><div class="row between"><h2 style="min-width:0">${esc(x.name)}</h2><button type="button" class="btn sm ghost" data-close>Close</button></div>
+   <div class="f2" style="grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);margin-top:12px"><label class="f">Amount<input id="ei-q" type="number" step="any" min="0" inputmode="decimal" value="${esc(x.qty)}"></label><label class="f">Unit<select id="ei-u">${F.units.map((u,j)=>`<option value="${j}" ${j===ui?"selected":""}>${esc(u.label)}</option>`).join("")}</select></label></div>
+   <label class="f" style="margin-top:10px">Meal<select id="ei-m">${MEALS.map(([k,n])=>`<option value="${k}" ${k===x.meal?"selected":""}>${n}</option>`).join("")}</select></label>
+   <p class="muted mono" id="ei-sum" style="font-size:12px;margin:12px 0 0"></p>
+   <div class="row" style="margin-top:14px"><button class="btn ghost" id="ei-del" type="button">Delete</button><button class="btn primary" id="ei-save" type="button" style="flex:1">Save</button></div>`);
+  const qi=sh.querySelector("#ei-q"),us=sh.querySelector("#ei-u"),sum=()=>{const u=F.units[+us.value],a=+qi.value||0;sh.querySelector("#ei-sum").textContent=`${n0(u.k*a)} kcal · P ${n1(u.p*a)} g · C ${n1(u.c*a)} g · F ${n1(u.f*a)} g`};
+  qi.oninput=sum;us.onchange=()=>{const was=F.units[ui],now=F.units[+us.value];if(!!was.base!==!!now.base)qi.value=defAmt(now);ui=+us.value;sum()};sum();
+  sh.querySelector("#ei-save").onclick=()=>{const a=+qi.value;if(!(a>0))return;const u=F.units[+us.value],l=items(cur).map(cl);l[i]={...l[i],...itemFromUnit(F,u,a,sh.querySelector("#ei-m").value),id:l[i].id};if(!F.fid)delete l[i].fid;setItems(cur,l);renderFood();closeSheet()};
+  sh.querySelector("#ei-del").onclick=()=>{const l=items(cur).map(cl);l.splice(i,1);setItems(cur,l);renderFood();closeSheet();toast("Removed")}}
+function renderQuick(){const el=$("#quickList");if(!el)return;const fr=frequentFoods(10);const qm=$("#qMeal");if(qm&&!qm.dataset.touched)qm.value=defaultMeal();
+  el.innerHTML=fr.length?fr.map((x,i)=>`<button type="button" data-quick="${i}" title="${esc(fmtQ(x.qty))} × ${esc(x.serving)}">${esc(x.name)} · ${n0(x.kcal*x.qty)}</button>`).join(""):`<p class="muted" style="font-size:13px;margin:0">Foods you log often show up here for one-tap adding.</p>`;el._fr=fr}
+$("#v-food").addEventListener("click",e=>{
+  const qb=e.target.closest("[data-quick]");if(qb){const x=$("#quickList")._fr[+qb.dataset.quick],m=$("#qMeal").value;const o={...x,meal:m};delete o.id;delete o.times;addItems(cur,[o]);renderFood();toast(`${x.name} added to ${mealName(m)}`);return}
+  const sm=e.target.closest("[data-savemeal]");if(sm){const k=sm.dataset.savemeal,its=items(cur).filter(x=>x.meal===k).map(x=>{const o=cl(x);delete o.id;delete o.meal;return o});if(!its.length)return;
+    const s2=sheet(`<div class="grab"></div><h2>Save ${esc(mealName(k).toLowerCase())} as a meal</h2><p class="muted" style="font-size:13px">${its.length} items · ${n0(its.reduce((s,x)=>s+x.kcal*x.qty,0))} kcal. Find it later under <b>My meals</b>.</p><form id="smf" class="stack"><label class="f">Meal name<input id="smn" required maxlength="60" value="${esc(mealName(k))} · ${esc(fmtD(cur))}"></label><div class="row"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" type="submit" style="flex:1">Save meal</button></div></form>`);
+    s2.querySelector("#smf").onsubmit=ev=>{ev.preventDefault();const name=s2.querySelector("#smn").value.trim()||mealName(k);S.custom={...S.custom,meals:[...(S.custom.meals||[]),{name,items:its}]};queueWrite("app/custom",S.custom,0);closeSheet();toast(`Saved “${name}”`)};return}
+});
+$("#qMeal")&&$("#qMeal").addEventListener("change",e=>{e.target.dataset.touched=1});
+
 const mealName=k=>(MEALS.find(m=>m[0]===k)||[k,k])[1];
-const foodObj=a=>({name:a[0],serving:a[1],kcal:a[2],p:a[3],c:a[4],f:a[5]});
 const fmtQ=q=>{q=+q||1;return q%1===0?String(q):String(+q.toFixed(2))};
 function bwFor(date){const t=trendAt(date);return t!=null?t:P().startWeight}
 function macroT(date){const t=targetsFor(date),fp=P().fatPct||0.25,p=t.protein,f=Math.round(t.cal*fp/9);return{cal:t.cal,p,f,c:Math.max(0,Math.round((t.cal-p*4-f*9)/4))}}
@@ -1014,8 +1499,6 @@ function syncDayFromFood(date){const its=items(date),d={...(S.days[date]||{})};
   if(its.length){const t=foodTotals(date);Object.assign(d,{cal:Math.round(t.kcal),protein:Math.round(t.p),carbs:Math.round(t.c),fat:Math.round(t.f),fromFood:true})}
   else if(d.fromFood){["cal","protein","carbs","fat","fromFood"].forEach(k=>delete d[k])}
   S.days[date]=d;_trend=null;saveDay(date)}
-function addItems(date,arr){setItems(date,[...items(date).map(cl),...arr.map(x=>({id:uid(),meal:x.meal,name:String(x.name||"Food").slice(0,80),serving:String(x.serving||"1 serving").slice(0,40),qty:+x.qty>0?+x.qty:1,kcal:+x.kcal||0,p:+x.p||0,c:+x.c||0,f:+x.f||0}))])}
-function recentFoods(){const seen=new Set(),out=[];for(const d of Object.keys(S.food).sort().reverse()){for(const x of items(d).slice().reverse()){const k=x.name.toLowerCase();if(seen.has(k))continue;seen.add(k);out.push({name:x.name,serving:x.serving,kcal:x.kcal,p:x.p,c:x.c,f:x.f});if(out.length>=30)return out}}return out}
 
 function renderFood(){
   if(!cur)cur=anchor();
@@ -1032,60 +1515,15 @@ function renderFood(){
   $("#meals").innerHTML=MEALS.map(([k,n])=>{const list=its.map((x,i)=>[x,i]).filter(([x])=>x.meal===k),mt2=foodTotals(cur,k);
     return `<div class="g s6"><div class="mealhead"><h2>${n}</h2><span class="num" style="font-size:18px">${n0(mt2.kcal)} <small class="muted mono" style="font-size:11px;font-weight:400">kcal</small></span></div>
     <div class="muted mono" style="font-size:11px">P ${n0(mt2.p)} g · C ${n0(mt2.c)} g · F ${n0(mt2.f)} g</div>
-    <div style="margin-top:8px">${list.map(([x,i])=>`<div class="fooditem" data-fi="${i}" role="button" tabindex="0"><div style="min-width:0"><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</div><div class="muted" style="font-size:11.5px">${esc(fmtQ(x.qty))} × ${esc(x.serving)} · P ${n0(x.p*x.qty)} C ${n0(x.c*x.qty)} F ${n0(x.f*x.qty)}</div></div><b class="num">${n0(x.kcal*x.qty)}</b></div>`).join("")}</div>
-    <div class="row" style="margin-top:10px"><button type="button" class="btn sm primary" data-add="${k}">+ Add food</button><button type="button" class="btn sm ghost" data-copy="${k}">Copy yesterday</button></div></div>`}).join("");
+    <div style="margin-top:8px">${list.map(([x,i])=>`<div class="fooditem" data-fi="${i}" role="button" tabindex="0"><div style="min-width:0"><div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)}</div><div class="muted" style="font-size:11.5px">${esc(servTxt(x))} · P ${n0(x.p*x.qty)} C ${n0(x.c*x.qty)} F ${n0(x.f*x.qty)}</div></div><b class="num">${n0(x.kcal*x.qty)}</b></div>`).join("")}</div>
+    <div class="row" style="margin-top:10px"><button type="button" class="btn sm primary" data-add="${k}">+ Add food</button><button type="button" class="btn sm ghost" data-copy="${k}">Copy yesterday</button>${list.length?`<button type="button" class="btn sm ghost" data-savemeal="${k}">Save meal</button>`:""}</div></div>`}).join("");
   const kc=[t.p*4,t.c*4,t.f*9],tot=kc[0]+kc[1]+kc[2],cols=["#5ef2ff","#a184ff","#ff7ab8"],tk=[mt.p*4,mt.c*4,mt.f*9];
   const top=its.map(x=>[x.name,x.kcal*x.qty]).sort((a,b)=>b[1]-a[1]).slice(0,5);
   $("#fBreak").innerHTML=tot?`<div class="row" style="gap:18px">${donut(kc.map((v,i)=>[v,cols[i]]),116)}<div style="display:grid;gap:6px;font-size:13px">${["Protein","Carbs","Fat"].map((n,i)=>`<div><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${cols[i]};margin-right:8px"></i>${n} <b class="mono">${Math.round(kc[i]/tot*100)}%</b> <span class="muted">· goal ${Math.round(tk[i]/(mt.cal||1)*100)}%</span></div>`).join("")}</div></div>
     <p class="eyebrow" style="margin-top:16px">Biggest contributors</p>${top.map(([n,k])=>`<div class="meter" style="grid-template-columns:minmax(0,1fr) 80px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(n)}</span><b class="mono" style="text-align:right">${n0(k)} kcal</b></div>`).join("")}`
     :`<div class="empty">Add food to see your calorie split and biggest contributors.</div>`;
-  const am=$("#aiMeal");if(!am.dataset.touched){const h=new Date().getHours();am.value=h<10?"breakfast":h<15?"lunch":h<21?"dinner":"snacks"}
+  renderQuick();const am=$("#aiMeal");if(!am.dataset.touched){const h=new Date().getHours();am.value=h<10?"breakfast":h<15?"lunch":h<21?"dinner":"snacks"}
 }
-function openFoodSheet(meal){
-  let tab="recent",sel=null,list=[];
-  const sh=sheet(`<div class="grab"></div><div class="row between"><h2>Add to ${esc(mealName(meal))}</h2><button type="button" class="btn sm ghost" data-close>Done</button></div>
-   <input id="fq" type="search" placeholder="Search foods: adobo, rice, egg…" autocomplete="off" style="margin-top:12px">
-   <div class="chips" id="ftabs" style="margin:10px 0 12px">${[["recent","Recent"],["all","All foods"],["mine","My foods"],["quick","Quick add"],["new","Create food"]].map(([k,n])=>`<button type="button" data-t="${k}" aria-pressed="${k==="recent"}">${n}</button>`).join("")}</div>
-   <div id="fbody"></div>`);
-  const body=sh.querySelector("#fbody"),q=sh.querySelector("#fq");
-  const src=()=>{const mine=(S.custom.foods||[]).map(x=>({...x,mine:1})),all=[...mine,...FOODS.map(foodObj)],qq=q.value.trim().toLowerCase();
-    if(qq){const seen=new Set();return [...recentFoods(),...all].filter(x=>{const k=x.name.toLowerCase();if(seen.has(k)||!k.includes(qq))return false;seen.add(k);return true}).slice(0,60)}
-    return tab==="recent"?recentFoods():tab==="mine"?mine:all};
-  const draw=()=>{
-    if(sel){const x=sel;body.innerHTML=`<div class="g" style="padding:16px"><h3 style="font-size:17px">${esc(x.name)}</h3><p class="muted" style="margin:2px 0 12px;font-size:12.5px">Per ${esc(x.serving)}: ${n0(x.kcal)} kcal · P ${n1(x.p)} · C ${n1(x.c)} · F ${n1(x.f)}</p>
-      <div class="row" style="flex-wrap:nowrap"><button type="button" class="iconbtn" data-q="-0.25" aria-label="Fewer servings">−</button><input id="fqty" type="number" step="0.25" min="0.25" value="1" style="text-align:center" aria-label="Servings"><button type="button" class="iconbtn" data-q="0.25" aria-label="More servings">+</button></div>
-      <div class="chips" style="margin-top:8px">${[0.5,1,1.5,2,3].map(v=>`<button type="button" data-qs="${v}">${v}×</button>`).join("")}</div>
-      <div id="fprev" class="macro" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px"></div>
-      <div class="row" style="margin-top:14px"><button type="button" class="btn ghost" data-back>Back</button><button type="button" class="btn primary" data-addsel style="flex:1">Add to ${esc(mealName(meal))}</button></div></div>`;
-      const qi=sh.querySelector("#fqty");qi.oninput=()=>{const v=+qi.value||0;sh.querySelector("#fprev").innerHTML=[["kcal",x.kcal,""],["Protein",x.p," g"],["Carbs",x.c," g"],["Fat",x.f," g"]].map(([n,a,u])=>`<div class="m"><span>${n}</span><b class="num">${n0(a*v)}${u}</b></div>`).join("")};qi.oninput();return}
-    if(tab==="quick"||tab==="new"){
-      body.innerHTML=`<form class="stack" id="fform">${tab==="new"?`<label class="f">Food name<input id="nf-name" required placeholder="e.g. Mom's chicken adobo"></label><label class="f">Serving size<input id="nf-serv" required placeholder="1 cup (150 g)"></label>`:`<label class="f">Label (optional)<input id="nf-name" placeholder="Quick add"></label>`}
-       <div class="f2" style="grid-template-columns:repeat(2,minmax(0,1fr))"><label class="f">Calories<input id="nf-kcal" type="number" required></label><label class="f">Protein g<input id="nf-p" type="number" step="0.1"></label><label class="f">Carbs g<input id="nf-c" type="number" step="0.1"></label><label class="f">Fat g<input id="nf-f" type="number" step="0.1"></label></div>
-       <button class="btn primary" type="submit">${tab==="new"?"Save food and add":"Add to "+esc(mealName(meal))}</button></form>`;
-      sh.querySelector("#fform").onsubmit=e=>{e.preventDefault();const g=id=>+sh.querySelector(id).value||0;
-        const x={name:sh.querySelector("#nf-name").value.trim()||"Quick add",serving:tab==="new"?sh.querySelector("#nf-serv").value.trim():"1 entry",kcal:g("#nf-kcal"),p:g("#nf-p"),c:g("#nf-c"),f:g("#nf-f")};
-        if(tab==="new"){S.custom={...S.custom,foods:[...(S.custom.foods||[]),x]};queueWrite("app/custom",S.custom,0)}
-        addItems(cur,[{...x,meal,qty:1}]);renderFood();toast("Added to "+mealName(meal));closeSheet()};return}
-    list=src();
-    body.innerHTML=list.length?`<div class="list">${list.map((x,i)=>`<button type="button" class="li" data-pick="${i}"><div style="min-width:0"><div class="t">${esc(x.name)}${x.mine?' <span class="pill info" style="font-size:9.5px;padding:1px 6px">mine</span>':""}</div><div class="s">${esc(x.serving)} · P ${n1(x.p)} C ${n1(x.c)} F ${n1(x.f)}</div></div><b class="num">${n0(x.kcal)}</b></button>`).join("")}</div>`
-      :`<div class="empty">${q.value?"No match. Try Quick add or Create food.":tab==="recent"?"Foods you log show up here for one-tap adding. Browse All foods to start.":"Foods you create are saved here."}</div>`};
-  sh.addEventListener("click",e=>{
-    const t=e.target.closest("[data-t]");if(t){tab=t.dataset.t;sel=null;sh.querySelectorAll("#ftabs button").forEach(b=>b.setAttribute("aria-pressed",b===t));draw();return}
-    const pk=e.target.closest("[data-pick]");if(pk){sel=list[+pk.dataset.pick];draw();return}
-    if(e.target.closest("[data-back]")){sel=null;draw();return}
-    const qb=e.target.closest("[data-q]");if(qb){const el=sh.querySelector("#fqty");el.value=Math.max(0.25,(+el.value||0)+(+qb.dataset.q));el.oninput();return}
-    const qs=e.target.closest("[data-qs]");if(qs){const el=sh.querySelector("#fqty");el.value=qs.dataset.qs;el.oninput();return}
-    if(e.target.closest("[data-addsel]")){const qv=+sh.querySelector("#fqty").value;if(!(qv>0))return;addItems(cur,[{...sel,meal,qty:qv}]);renderFood();toast(sel.name+" added");sel=null;q.value="";draw()}
-  });
-  q.addEventListener("input",()=>{sel=null;draw()});draw();
-}
-function openItemSheet(i){const x=items(cur)[i];if(!x)return;
-  const sh=sheet(`<div class="grab"></div><div class="row between"><h2 style="min-width:0">${esc(x.name)}</h2><button type="button" class="btn sm ghost" data-close>Close</button></div>
-   <p class="muted" style="font-size:12.5px">Per ${esc(x.serving)}: ${n0(x.kcal)} kcal · P ${n1(x.p)} · C ${n1(x.c)} · F ${n1(x.f)}</p>
-   <div class="f2"><label class="f">Servings<input id="ei-q" type="number" step="0.25" min="0.25" value="${esc(x.qty)}"></label><label class="f">Meal<select id="ei-m">${MEALS.map(([k,n])=>`<option value="${k}" ${k===x.meal?"selected":""}>${n}</option>`).join("")}</select></label></div>
-   <div class="row" style="margin-top:14px"><button class="btn ghost" id="ei-del" type="button">Delete</button><button class="btn primary" id="ei-save" type="button" style="flex:1">Save</button></div>`);
-  sh.querySelector("#ei-save").onclick=()=>{const q=+sh.querySelector("#ei-q").value;if(!(q>0))return;const l=items(cur).map(cl);l[i]={...l[i],qty:q,meal:sh.querySelector("#ei-m").value};setItems(cur,l);renderFood();closeSheet()};
-  sh.querySelector("#ei-del").onclick=()=>{const l=items(cur).map(cl);l.splice(i,1);setItems(cur,l);renderFood();closeSheet();toast("Removed")}}
 let aiFile=null,aiResult=[];
 async function runAI(){const txt=$("#aiText").value.trim();if(!txt&&!aiFile){toast("Describe the meal or add a photo");return}
   const out=$("#aiOut"),btn=$("#aiGo");btn.disabled=true;out.innerHTML=`<p class="muted pulse">Claude is estimating your meal…</p>`;
@@ -1321,7 +1759,7 @@ $("#aiPhoto").addEventListener("change",e=>{aiFile=e.target.files[0]||null;$("#a
 $("#aiMeal").addEventListener("change",e=>{e.target.dataset.touched=1});
 $("#p-pauto").addEventListener("click",e=>{const b=e.currentTarget,on=b.getAttribute("aria-pressed")!=="true";b.setAttribute("aria-pressed",on);$("#t-protein").disabled=on});
 $$("[data-go]").forEach(b=>b.addEventListener("click",()=>{location.hash="#"+b.dataset.go}));
-(window.claude?.use?.("sample")??Promise.resolve(null)).then(s=>{if(!s)$("#aiCard").hidden=true}).catch(()=>{$("#aiCard").hidden=true});
+(window.claude?.use?.("sample")??Promise.resolve(null)).then(()=>{}).catch(()=>{$("#aiCard").hidden=true});
 
 function renderDashExtras(A,L7){
   const mt=macroT(A),bw=bwFor(A),withM=L7.filter(d=>isNum(d.carbs)),ap=avg(L7.map(d=>d.protein)),acal=avg(L7.map(d=>d.cal));
