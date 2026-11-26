@@ -122,21 +122,21 @@
   window.ASCEND = { sb, ready, session: SESSION, refreshRoster: () => DBI && DBI.refreshRoster() };
 
   /* ---------------- login UI ---------------- */
-  const css = `.auth{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:radial-gradient(120% 80% at 50% -10%,#101a36 0%,#04060d 60%)}
-  .auth .card{width:min(420px,100%);border-radius:24px;padding:28px 24px;background:linear-gradient(145deg,rgba(170,200,255,.13),rgba(150,180,255,.06));border:1px solid rgba(170,200,255,.2);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 20px 60px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.12);display:grid;gap:14px;color:#eaf1ff}
+  const css = `.auth{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:radial-gradient(120% 80% at 50% -10%,var(--sky1) 0%,var(--void) 60%)}
+  .auth .card{width:min(420px,100%);border-radius:24px;padding:28px 24px;background:linear-gradient(145deg,var(--glass-hi),var(--glass));border:1px solid var(--line-hi);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 20px 60px var(--shadow),inset 0 1px 0 var(--hl);display:grid;gap:14px;color:var(--fg)}
   .auth h1{font-family:"Chakra Petch",system-ui,sans-serif;font-size:30px;letter-spacing:.06em;margin:0;text-transform:uppercase}
-  .auth .mot{margin:-8px 0 6px;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8e9bbb}
-  .auth label{display:grid;gap:6px;font-size:12px;color:#8e9bbb}
-  .auth input{font:inherit;font-size:15px;color:#eaf1ff;background:rgba(4,8,20,.55);border:1px solid rgba(170,200,255,.18);border-radius:12px;padding:12px 14px}
-  .auth button{font:inherit;font-weight:600;cursor:pointer;border-radius:12px;padding:12px 16px;border:1px solid rgba(190,220,255,.28);background:rgba(170,200,255,.12);color:#eaf1ff}
-  .auth button.pri{background:linear-gradient(135deg,#5ef2ff,#a184ff);color:#060a18;border-color:transparent}
-  .auth .lnk{background:none;border:0;padding:0;color:#5ef2ff;font-weight:500;justify-self:start}
-  .auth .msg{font-size:13px;min-height:1em;color:#ffc65c}.auth .msg.ok{color:#4fe3a1}
-  .auth .tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;background:rgba(0,0,0,.3);border:1px solid rgba(170,200,255,.16)}
-  .auth .tabs button{border:0;border-radius:10px;padding:10px;background:none;color:#8e9bbb}
-  .auth .tabs button[aria-selected="true"]{background:linear-gradient(135deg,#5ef2ff,#a184ff);color:#060a18}
-  .auth input:focus-visible,.auth button:focus-visible{outline:2px solid #5ef2ff;outline-offset:2px}`;
-  const LOGO = `<svg width="44" height="44" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="alg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#5ef2ff"/><stop offset=".55" stop-color="#a184ff"/><stop offset="1" stop-color="#ff7ab8"/></linearGradient></defs><path d="M16 2.5 28 9.3v13.4L16 29.5 4 22.7V9.3z" fill="none" stroke="url(#alg)" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 11.5h12M16 11.5V24" fill="none" stroke="url(#alg)" stroke-width="2.8" stroke-linecap="round"/></svg>`;
+  .auth .mot{margin:-8px 0 6px;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .auth label{display:grid;gap:6px;font-size:12px;color:var(--muted)}
+  .auth input{font:inherit;font-size:15px;color:var(--fg);background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .auth button{font:inherit;font-weight:600;cursor:pointer;border-radius:12px;padding:12px 16px;border:1px solid var(--line-hi);background:var(--glass-hi);color:var(--fg)}
+  .auth button.pri{background:linear-gradient(135deg,var(--cyan),var(--violet));color:var(--on-accent);border-color:transparent}
+  .auth .lnk{background:none;border:0;padding:0;color:var(--cyan);font-weight:500;justify-self:start}
+  .auth .msg{font-size:13px;min-height:1em;color:var(--warn)}.auth .msg.ok{color:var(--good)}
+  .auth .tabs{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border-radius:14px;background:var(--inset);border:1px solid var(--line)}
+  .auth .tabs button{border:0;border-radius:10px;padding:10px;background:none;color:var(--muted)}
+  .auth .tabs button[aria-selected="true"]{background:linear-gradient(135deg,var(--cyan),var(--violet));color:var(--on-accent)}
+  .auth input:focus-visible,.auth button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}`;
+  const LOGO = `<svg width="44" height="44" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="alg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="var(--cyan)"/><stop offset=".55" stop-color="var(--violet)"/><stop offset="1" stop-color="var(--rose)"/></linearGradient></defs><path d="M16 2.5 28 9.3v13.4L16 29.5 4 22.7V9.3z" fill="none" stroke="url(#alg)" stroke-width="2.2" stroke-linejoin="round"/><path d="M10 11.5h12M16 11.5V24" fill="none" stroke="url(#alg)" stroke-width="2.8" stroke-linecap="round"/></svg>`;
   let box = null;
   function overlay(html) {
     if (!box) { const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st); box = document.createElement("div"); box.className = "auth"; box.setAttribute("role", "dialog"); box.setAttribute("aria-modal", "true"); document.body.appendChild(box) }
